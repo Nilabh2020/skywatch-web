@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { getAircraftLabel, isA380 } from '../lib/aircraftNormalize.js';
 import { getAirlineFromCallsign } from '../lib/airlineLookup.js';
@@ -58,7 +58,7 @@ function MapInvalidateSize({ aircraft, searchRadiusKm, alertRadiusKm, darkMode }
   return null;
 }
 
-export default function AircraftMap({ userLat, userLon, aircraft, alertRadiusKm, searchRadiusKm, darkMode, onAircraftClick }) {
+export default function AircraftMap({ userLat, userLon, aircraft, alertRadiusKm, searchRadiusKm, darkMode, onAircraftClick, selectedAircraft }) {
   const tileUrl = darkMode
     ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
     : 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
@@ -87,6 +87,20 @@ export default function AircraftMap({ userLat, userLon, aircraft, alertRadiusKm,
 
       <Circle center={[userLat, userLon]} radius={searchRadiusKm * 1000}
         pathOptions={{ color: circleColor, fillColor: circleColor, fillOpacity: 0.02, weight: 1, dashArray: '6 4' }} />
+
+      {/* Flight path lines for selected aircraft */}
+      {selectedAircraft?.prediction?.pastPath && (
+        <Polyline
+          positions={selectedAircraft.prediction.pastPath}
+          pathOptions={{ color: '#ffffff', weight: 2, opacity: 0.9 }}
+        />
+      )}
+      {selectedAircraft?.prediction?.futurePath && (
+        <Polyline
+          positions={selectedAircraft.prediction.futurePath}
+          pathOptions={{ color: '#ffffff', weight: 2, opacity: 0.5, dashArray: '8 6' }}
+        />
+      )}
 
       {aircraft.map((ac) => {
         if (ac.lat == null || ac.lon == null) return null;

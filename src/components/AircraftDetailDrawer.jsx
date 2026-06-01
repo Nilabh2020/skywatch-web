@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plane, ArrowUpRight, Gauge, MapPin, Clock, Navigation } from 'lucide-react';
+import { X, Plane, ArrowUpRight, Gauge, MapPin, Clock, Navigation, Building2, Route, Timer } from 'lucide-react';
 import { getAirlineFromCallsign, getAircraftTypeLabel } from '../lib/airlineLookup.js';
 import { isA380 } from '../lib/aircraftNormalize.js';
+import { haversine } from '../lib/geo.js';
 
 export default function AircraftDetailDrawer({ aircraft, onClose, darkMode }) {
   const t = darkMode ? {
@@ -27,6 +28,19 @@ export default function AircraftDetailDrawer({ aircraft, onClose, darkMode }) {
   const airline = getAirlineFromCallsign(aircraft.callsign);
   const a380 = isA380(aircraft.aircraft_type);
   const pred = aircraft.prediction;
+
+  // Calculate distance covered since takeoff using past path
+  let distanceCoveredKm = null;
+  if (pred?.pastPath && pred.pastPath.length >= 2) {
+    let totalDist = 0;
+    for (let i = 1; i < pred.pastPath.length; i++) {
+      totalDist += haversine(
+        pred.pastPath[i - 1][0], pred.pastPath[i - 1][1],
+        pred.pastPath[i][0], pred.pastPath[i][1]
+      );
+    }
+    distanceCoveredKm = Math.round(totalDist);
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center animate-fade-in"
@@ -54,7 +68,6 @@ export default function AircraftDetailDrawer({ aircraft, onClose, darkMode }) {
               {aircraft.callsign || 'Unknown'}
             </div>
             <div className="text-sm" style={{ color: t.textSecondary }}>
-              {airline && <span className="font-medium mr-2" style={{ color: t.textPrimary }}>{airline}</span>}
               {getAircraftTypeLabel(aircraft.aircraft_type)}
             </div>
             {a380 && (
@@ -63,6 +76,60 @@ export default function AircraftDetailDrawer({ aircraft, onClose, darkMode }) {
             )}
           </div>
         </div>
+
+        {/* Airline Info */}
+        {airline && (
+          <div className="mb-5 p-4 rounded-xl" style={{ background: t.bgTertiary, border: `1px solid ${t.border}` }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Building2 className="w-4 h-4" style={{ color: t.textTertiary }} />
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: t.textTertiary }}>Operator</span>
+            </div>
+            <div className="text-lg font-bold" style={{ color: t.textPrimary }}>{airline}</div>
+          </div>
+        )}
+
+        {/* Flight Progress */}
+        {(pred?.estimatedFlightHours != null || distanceCoveredKm != null) && (
+          <div className="mb-5 p-4 rounded-xl" style={{ background: t.bgTertiary, border: `1px solid ${t.border}` }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Route className="w-4 h-4" style={{ color: t.textTertiary }} />
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: t.textTertiary }}>Flight Progress</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {pred?.estimatedFlightHours != null && (
+                <div>
+                  <div className="flex items-center gap-1 text-xs mb-1" style={{ color: t.textTertiary }}>
+                    <Timer className="w-3 h-3" /> Time Airborne
+                  </div>
+                  <div className="text-xl font-bold" style={{ color: t.textPrimary }}>
+                    {pred.estimatedFlightHours < 1
+                      ? `${Math.round(pred.estimatedFlightHours * 60)} min`
+                      : `${pred.estimatedFlightHours} hrs`}
+                  </div>
+                </div>
+              )}
+              {distanceCoveredKm != null && (
+                <div>
+                  <div className="flex items-center gap-1 text-xs mb-1" style={{ color: t.textTertiary }}>
+                    <Navigation className="w-3 h-3" /> Distance Covered
+                  </div>
+                  <div className="text-xl font-bold" style={{ color: t.textPrimary }}>
+                    {distanceCoveredKm.toLocaleString()} km
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Path legend */}
+            <div className="mt-3 pt-3 flex items-center gap-4 text-[10px]" style={{ borderTop: `1px solid ${t.border}`, color: t.textTertiary }}>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-4 h-0.5 bg-white rounded-full"></span> Past track
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-4 h-0.5 border-t border-dashed border-white rounded-full"></span> Predicted path
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Prediction */}
         {pred && (

@@ -44,11 +44,59 @@ export function predictClosestApproach(userLat, userLon, aircraft, lookaheadMin)
     }
   }
 
+  // Build full predicted path (future positions)
+  const futurePath = [];
+  for (let i = 0; i <= steps; i++) {
+    const d = stepDist * i;
+    const pos = destination(lat, lon, track_deg, d);
+    futurePath.push([pos.lat, pos.lon]);
+  }
+
+  // Estimate past path (reverse direction from current position)
+  // Use ground speed to estimate how far back we can reasonably project
+  // Assume we've been tracking for ~30 min max or until speed/track data is unreliable
+  const pastMinutes = Math.min(30, lookaheadMin * 3);
+  const pastDistKm = (speedKmh * pastMinutes) / 60;
+  const pastSteps = 15;
+  const pastStepDist = pastDistKm / pastSteps;
+  const reverseTrack = (track_deg + 180) % 360;
+
+  const pastPath = [];
+  for (let i = pastSteps; i >= 0; i--) {
+    const d = pastStepDist * i;
+    const pos = destination(lat, lon, reverseTrack, d);
+    pastPath.push([pos.lat, pos.lon]);
+  }
+
+  // Estimate flight hours since takeoff based on altitude climb profile
+  // Simple heuristic: assume average climb rate of 1500 ft/min to cruise
+  // Then cruise at current altitude. This is approximate.
+  let estimatedFlightHours = null;
+  if (aircraft.altitude_ft != null && aircraft.vertical_rate != null) {
+    // If climbing, estimate time to reach current altitude
+    if (aircraft.vertical_rate > 0) {
+      estimatedFlightHours = Math.round((aircraft.altitude_ft / 1500 / 60) * 10) / 10;
+    } else {
+      // If level or descending, use distance traveled estimate
+      // Assume average cruise speed of 850 km/h
+      const avgCruiseSpeed = 850;
+      const distTraveledKm = speedKmh * pastMinutes / 60;
+      estimatedFlightHours = Math.round((distTraveledKm / avgCruiseSpeed) * 10) / 10;
+      if (estimatedFlightHours < 0.5) estimatedFlightHours = 0.5; // Minimum reasonable
+    }
+  } else if (ground_speed_kmh > 200) {
+    // Rough estimate based on speed alone
+    estimatedFlightHours = Math.round((pastMinutes / 60) * 10) / 10;
+  }
+
   return {
     closestDistanceKm: Math.round(minDist * 100) / 100,
     minutesUntilClosest: Math.round(minTimeMin * 10) / 10,
     closestLat,
     closestLon,
+    futurePath,   // Array of [lat, lon] for predicted route
+    pastPath,     // Array of [lat, lon] for estimated past route
+    estimatedFlightHours,
   };
 }
 
