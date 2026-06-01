@@ -12,8 +12,18 @@ const KEYS = {
 export function loadSelectedAirlines() {
   try {
     const raw = localStorage.getItem(KEYS.AIRLINES);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    // Migration: if stored value is not an array or is somehow invalid, reset
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem(KEYS.AIRLINES);
+      return [];
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem(KEYS.AIRLINES);
+    return [];
+  }
 }
 
 export function saveSelectedAirlines(list) {
@@ -23,8 +33,17 @@ export function saveSelectedAirlines(list) {
 export function loadSelectedTypes() {
   try {
     const raw = localStorage.getItem(KEYS.TYPES);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      localStorage.removeItem(KEYS.TYPES);
+      return [];
+    }
+    return parsed;
+  } catch {
+    localStorage.removeItem(KEYS.TYPES);
+    return [];
+  }
 }
 
 export function saveSelectedTypes(list) {

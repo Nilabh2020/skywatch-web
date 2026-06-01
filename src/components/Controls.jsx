@@ -210,8 +210,8 @@ function FilterModal({
             <h2 className="text-xl font-bold" style={{ color: t.textPrimary }}>Watchlist Filters</h2>
             <p className="text-sm mt-0.5" style={{ color: t.textSecondary }}>
               {totalSelected > 0
-                ? `${totalSelected} filter${totalSelected !== 1 ? 's' : ''} active — only matching aircraft will appear`
-                : 'No filters active — all aircraft will appear'}
+                ? `${totalSelected} filter${totalSelected !== 1 ? 's' : ''} active — showing only matches`
+                : 'No filters — showing all aircraft'}
             </p>
           </div>
           <button onClick={onClose}
